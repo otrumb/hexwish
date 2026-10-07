@@ -29,7 +29,17 @@ func TestProbability_matches_exhaustive_reduced_space(t *testing.T) {
 
 func TestQuantile_is_honest_geometric_trial_count(t *testing.T) {
 	p := big.NewRat(1, 16)
-	if got := QuantileTrials(p, 0.5); got != 11 {
+	got, err := QuantileTrials(p, 0.5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != 11 {
 		t.Fatalf("got %d", got)
+	}
+}
+
+func TestQuantile_rejects_unrepresentable_trial_count(t *testing.T) {
+	if _, err := QuantileTrials(new(big.Rat).SetFrac(big.NewInt(1), pow16(40)), 0.99); err == nil {
+		t.Fatal("accepted overflowing trial count")
 	}
 }

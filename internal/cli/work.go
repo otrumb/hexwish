@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -78,7 +79,7 @@ func generate(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		return err
 	}
 	defer clear(again)
-	if len(password) == 0 || string(password) != string(again) {
+	if len(password) == 0 || !bytes.Equal(password, again) {
 		return errors.New("passwords do not match or are empty")
 	}
 	encoded, err := vault.Encrypt(result.PrivateKey, password)

@@ -1,6 +1,7 @@
 package wish
 
 import (
+	"errors"
 	"math"
 	"math/big"
 )
@@ -56,13 +57,17 @@ func (m Matcher) Probability(width int) *big.Rat {
 	return new(big.Rat).SetFrac(m.Favorable(width), pow16(width))
 }
 
-func QuantileTrials(probability *big.Rat, quantile float64) uint64 {
+func QuantileTrials(probability *big.Rat, quantile float64) (uint64, error) {
 	p, _ := probability.Float64()
-	if p <= 0 || quantile <= 0 {
-		return 0
+	if p <= 0 || quantile <= 0 || quantile >= 1 {
+		return 0, errors.New("probability and quantile must be within (0,1)")
 	}
 	if p >= 1 {
-		return 1
+		return 1, nil
 	}
-	return uint64(math.Ceil(math.Log1p(-quantile) / math.Log1p(-p)))
+	trials := math.Ceil(math.Log1p(-quantile) / math.Log1p(-p))
+	if math.IsInf(trials, 0) || trials > math.MaxUint64 {
+		return 0, errors.New("quantile exceeds uint64 trial range")
+	}
+	return uint64(trials), nil
 }

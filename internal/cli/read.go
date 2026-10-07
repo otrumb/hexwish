@@ -35,7 +35,11 @@ func estimate(args []string, stdout, stderr io.Writer) error {
 	p := matcher.Probability(40)
 	fmt.Fprintf(stdout, "probability=%s expected_trials=%s\n", p.RatString(), new(big.Rat).Inv(p).FloatString(0))
 	for _, q := range []float64{0.5, 0.9, 0.99} {
-		trials := wish.QuantileTrials(p, q)
+		trials, err := wish.QuantileTrials(p, q)
+		if err != nil {
+			fmt.Fprintf(stdout, "p%.0f_trials=unrepresentable eta=unavailable\n", q*100)
+			continue
+		}
 		fmt.Fprintf(stdout, "p%.0f_trials=%d eta=%s\n", q*100, trials, (time.Duration(float64(trials)/rate) * time.Second).Round(time.Second))
 	}
 	return nil
