@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,7 +18,8 @@ import (
 const MaxInput = 1 << 20
 
 type envelope struct {
-	Version int `json:"version"`
+	Address string `json:"address"`
+	Version int    `json:"version"`
 	Crypto  struct {
 		Cipher    string `json:"cipher"`
 		KDF       string `json:"kdf"`
@@ -48,6 +50,9 @@ func Verify(encoded, password []byte) (common.Address, error) {
 		return common.Address{}, fmt.Errorf("parse keystore metadata: %w", err)
 	}
 	p := metadata.Crypto.KDFParams
+	if len(metadata.Address) != 40 || !common.IsHexAddress("0x"+metadata.Address) {
+		return common.Address{}, errors.New("keystore address must be 40 hexadecimal characters")
+	}
 	if metadata.Version != 3 || metadata.Crypto.KDF != "scrypt" || metadata.Crypto.Cipher != "aes-128-ctr" || p.N != keystore.StandardScryptN || p.R != 8 || p.P != keystore.StandardScryptP || p.DKLen != 32 {
 		return common.Address{}, errors.New("keystore does not use fixed standard-scrypt profile")
 	}
@@ -57,7 +62,8 @@ func Verify(encoded, password []byte) (common.Address, error) {
 	}
 	defer key.PrivateKey.D.SetInt64(0)
 	derived := gethcrypto.PubkeyToAddress(key.PrivateKey.PublicKey)
-	if derived != key.Address {
+	declared := common.HexToAddress("0x" + strings.ToLower(metadata.Address))
+	if derived != key.Address || derived != declared {
 		return common.Address{}, errors.New("keystore address does not match private key")
 	}
 	return derived, nil
