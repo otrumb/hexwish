@@ -76,6 +76,11 @@ func Search(ctx context.Context, matcher Matcher, workers int, source KeySource)
 		case result := <-results:
 			return result, nil
 		default:
+		}
+		select {
+		case err := <-errorsOut:
+			return Result{}, fmt.Errorf("generate candidate: %w", err)
+		default:
 			return Result{}, ctx.Err()
 		}
 	}
