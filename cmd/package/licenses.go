@@ -17,7 +17,6 @@ type moduleLocation struct {
 	Version string
 	Dir     string
 }
-
 type moduleDownload struct {
 	Path    string
 	Version string
@@ -49,7 +48,6 @@ func releaseFiles(binary string) (map[string][]byte, error) {
 	}
 	return files, nil
 }
-
 func sourceFiles(binaries []string) (map[string][]byte, error) {
 	files := make(map[string][]byte)
 	if err := addProjectSource(files); err != nil {
