@@ -50,6 +50,17 @@ func TestRun_estimate_never_reports_wrapped_eta(t *testing.T) {
 	}
 }
 
+func TestRun_estimate_reports_unavailable_at_duration_boundary(t *testing.T) {
+	var out bytes.Buffer
+	err := Run(context.Background(), []string{"estimate", "--prefix", "a", "--rate", "1.1926223897340549e-9"}, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "eta=-") || !strings.Contains(out.String(), "eta=unavailable") {
+		t.Fatalf("unsafe ETA: %s", out.String())
+	}
+}
+
 func TestRun_estimate_rejects_nonfinite_rate(t *testing.T) {
 	for _, rate := range []string{"NaN", "+Inf", "-Inf"} {
 		err := Run(context.Background(), []string{"estimate", "--prefix", "a", "--rate", rate}, &bytes.Buffer{}, &bytes.Buffer{})

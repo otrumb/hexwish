@@ -42,7 +42,7 @@ func estimate(args []string, stdout, stderr io.Writer) error {
 			continue
 		}
 		seconds := float64(trials) / rate
-		if seconds > float64(time.Duration(1<<63-1))/float64(time.Second) {
+		if seconds >= float64(time.Duration(1<<63-1))/float64(time.Second) {
 			fmt.Fprintf(stdout, "p%.0f_trials=%d eta=unavailable\n", q*100, trials)
 			continue
 		}
