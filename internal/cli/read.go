@@ -40,7 +40,12 @@ func estimate(args []string, stdout, stderr io.Writer) error {
 			fmt.Fprintf(stdout, "p%.0f_trials=unrepresentable eta=unavailable\n", q*100)
 			continue
 		}
-		fmt.Fprintf(stdout, "p%.0f_trials=%d eta=%s\n", q*100, trials, (time.Duration(float64(trials)/rate) * time.Second).Round(time.Second))
+		seconds := float64(trials) / rate
+		if seconds > float64(time.Duration(1<<63-1))/float64(time.Second) {
+			fmt.Fprintf(stdout, "p%.0f_trials=%d eta=unavailable\n", q*100, trials)
+			continue
+		}
+		fmt.Fprintf(stdout, "p%.0f_trials=%d eta=%s\n", q*100, trials, time.Duration(seconds*float64(time.Second)).Round(time.Second))
 	}
 	return nil
 }
@@ -69,7 +74,7 @@ func verify(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("read keystore: %w", err)
 	}
-	password, err := terminalPassword("Password: ", stderr)
+	password, err := readPassword("Password: ", stderr)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,9 @@ package cli
 import (
 	"bytes"
 	"context"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -33,5 +36,65 @@ func TestRun_estimate_reports_exact_probability(t *testing.T) {
 func TestRun_rejects_unknown_command(t *testing.T) {
 	if err := Run(context.Background(), []string{"unknown"}, &bytes.Buffer{}, &bytes.Buffer{}); err == nil {
 		t.Fatal("accepted unknown command")
+	}
+}
+
+func TestRun_estimate_never_reports_wrapped_eta(t *testing.T) {
+	var out bytes.Buffer
+	err := Run(context.Background(), []string{"estimate", "--prefix", "000000000000000", "--rate", "1"}, &out, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out.String(), "eta=-") {
+		t.Fatalf("wrapped ETA: %s", out.String())
+	}
+}
+
+func TestRun_generate_then_verify_uses_hidden_password_boundary(t *testing.T) {
+	password := []byte("TEST ONLY NEVER FUND")
+	oldReader := readPassword
+	var prompts []string
+	readPassword = func(prompt string, _ io.Writer) ([]byte, error) {
+		prompts = append(prompts, prompt)
+		return append([]byte(nil), password...), nil
+	}
+	t.Cleanup(func() { readPassword = oldReader })
+
+	output := filepath.Join(t.TempDir(), "key.json")
+	var generateOut, verifyOut, stderr bytes.Buffer
+	if err := Run(context.Background(), []string{"generate", "--prefix", "0", "--workers", "1", "--output", output, "--confirm"}, &generateOut, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(output); err != nil {
+		t.Fatal(err)
+	}
+	if err := Run(context.Background(), []string{"verify", "--file", output, "--prefix", "0"}, &verifyOut, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if generateOut.String() != verifyOut.String() {
+		t.Fatalf("generated %q verified %q", generateOut.String(), verifyOut.String())
+	}
+	if got := strings.Join(prompts, "|"); got != "New password: |Confirm password: |Password: " {
+		t.Fatalf("prompts %s", got)
+	}
+}
+
+func TestRun_generate_wrong_confirmation_leaves_no_destination(t *testing.T) {
+	oldReader := readPassword
+	answers := [][]byte{[]byte("first"), []byte("second")}
+	readPassword = func(_ string, _ io.Writer) ([]byte, error) {
+		answer := answers[0]
+		answers = answers[1:]
+		return append([]byte(nil), answer...), nil
+	}
+	t.Cleanup(func() { readPassword = oldReader })
+
+	output := filepath.Join(t.TempDir(), "key.json")
+	err := Run(context.Background(), []string{"generate", "--prefix", "0", "--workers", "1", "--output", output, "--confirm"}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil {
+		t.Fatal("accepted mismatched passwords")
+	}
+	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+		t.Fatalf("destination exists after mismatch: %v", statErr)
 	}
 }

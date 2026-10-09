@@ -69,12 +69,12 @@ func generate(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		return err
 	}
 	defer result.PrivateKey.D.SetInt64(0)
-	password, err := terminalPassword("New password: ", stderr)
+	password, err := readPassword("New password: ", stderr)
 	if err != nil {
 		return err
 	}
 	defer clear(password)
-	again, err := terminalPassword("Confirm password: ", stderr)
+	again, err := readPassword("Confirm password: ", stderr)
 	if err != nil {
 		return err
 	}
