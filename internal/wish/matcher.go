@@ -21,6 +21,17 @@ func NewMatcher(prefixes, suffixes []string) (Matcher, error) {
 	if len(p) == 0 && len(s) == 0 {
 		return Matcher{}, errors.New("at least one pattern is required")
 	}
+	if len(p) > 0 && len(s) > 0 {
+		possible := false
+		for _, prefix := range p {
+			for _, suffix := range s {
+				possible = possible || compatible(prefix, suffix, 40)
+			}
+		}
+		if !possible {
+			return Matcher{}, errors.New("prefix and suffix patterns cannot match one address")
+		}
+	}
 	return Matcher{prefixes: p, suffixes: s}, nil
 }
 

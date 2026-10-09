@@ -35,3 +35,11 @@ func TestMatcher_rejects_invalid_or_unbounded_input(t *testing.T) {
 		}
 	}
 }
+
+func TestMatcher_rejects_incompatible_prefix_suffix_sets(t *testing.T) {
+	prefix := "a" + strings.Repeat("0", 39)
+	suffix := strings.Repeat("b", 40)
+	if _, err := NewMatcher([]string{prefix}, []string{suffix}); err == nil {
+		t.Fatal("accepted patterns with zero matching addresses")
+	}
+}
