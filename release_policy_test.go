@@ -15,9 +15,9 @@ func TestCI_runs_for_main_pull_requests_and_manual_dispatch(t *testing.T) {
 	}
 }
 
-func TestRelease_requires_exact_v010_tag_and_dual_os_validation(t *testing.T) {
+func TestRelease_requires_exact_v011_tag_and_dual_os_validation(t *testing.T) {
 	workflow := readPolicyFile(t, ".github/workflows/release.yml")
-	for _, required := range []string{"tags: [v0.1.0]", "windows-latest", "ubuntu-latest", "needs: validate", "draft: true", "contents: write"} {
+	for _, required := range []string{"tags: [v0.1.1]", "windows-latest", "ubuntu-latest", "needs: validate", "draft: true", "contents: write"} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("missing release policy token %q", required)
 		}
@@ -53,7 +53,7 @@ func TestRelease_uses_full_action_pins_and_local_packager(t *testing.T) {
 	if !strings.Contains(workflow, "go run ./cmd/package") || !strings.Contains(workflow, "-out dist") {
 		t.Fatal("release does not use locally rehearsable packager")
 	}
-	for _, required := range []string{"-platform source", "hexwish-source-v0.1.0.tar.gz"} {
+	for _, required := range []string{"-platform source", "hexwish-source-v0.1.1.tar.gz"} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("release does not publish relinking source: %s", required)
 		}

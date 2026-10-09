@@ -44,7 +44,7 @@ func main() {
 		} else if *platform == "windows-amd64" {
 			err = writeZip(filepath.Join(*output, "hexwish-windows-amd64.zip"), files)
 		} else {
-			err = writeTarGzip(filepath.Join(*output, "hexwish-source-v0.1.0.tar.gz"), files)
+			err = writeTarGzip(filepath.Join(*output, "hexwish-source-v0.1.1.tar.gz"), files)
 		}
 	}
 	if err != nil {
