@@ -63,3 +63,19 @@ func TestAddGoLicense_includes_toolchain_terms(t *testing.T) {
 		}
 	}
 }
+
+func TestModuleDir_downloads_module_when_list_has_no_directory(t *testing.T) {
+	want := t.TempDir()
+	got, err := moduleDir(moduleLocation{Path: "example.test/module", Version: "v1.2.3"}, func(path, version string) (moduleDownload, error) {
+		if path != "example.test/module" || version != "v1.2.3" {
+			t.Fatalf("download %s@%s", path, version)
+		}
+		return moduleDownload{Path: path, Version: version, Dir: want}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}

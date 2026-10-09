@@ -17,11 +17,6 @@ type moduleLocation struct {
 	Version string
 	Dir     string
 }
-type moduleDownload struct {
-	Path    string
-	Version string
-	Zip     string
-}
 
 func releaseFiles(binary string) (map[string][]byte, error) {
 	files := make(map[string][]byte)
@@ -135,22 +130,6 @@ func addGoLicense(files map[string][]byte) error {
 	return nil
 }
 
-func downloadModule(path, version string) (moduleDownload, error) {
-	command := exec.Command("go", "mod", "download", "-json", path+"@"+version)
-	output, err := command.Output()
-	if err != nil {
-		return moduleDownload{}, fmt.Errorf("download module source %s@%s: %w", path, version, err)
-	}
-	var download moduleDownload
-	if err := json.Unmarshal(output, &download); err != nil {
-		return moduleDownload{}, fmt.Errorf("decode module source %s@%s: %w", path, version, err)
-	}
-	if download.Path != path || download.Version != version || download.Zip == "" {
-		return moduleDownload{}, fmt.Errorf("module source mismatch for %s@%s", path, version)
-	}
-	return download, nil
-}
-
 func addSource(files map[string][]byte) error {
 	return filepath.WalkDir(".", func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -193,13 +172,17 @@ func addLicenses(files map[string][]byte, binary string) error {
 		if !ok {
 			return fmt.Errorf("module directory missing for %s@%s", path, version)
 		}
-		names, err := licenseNames(location.Dir)
+		dir, err := moduleDir(location, downloadModule)
+		if err != nil {
+			return err
+		}
+		names, err := licenseNames(dir)
 		if err != nil {
 			return fmt.Errorf("module %s@%s: %w", path, version, err)
 		}
 		bundleDir := "licenses/" + strings.ReplaceAll(path, "/", "_") + "@" + version
 		for _, name := range names {
-			content, err := os.ReadFile(filepath.Join(location.Dir, name))
+			content, err := os.ReadFile(filepath.Join(dir, name))
 			if err != nil {
 				return err
 			}
