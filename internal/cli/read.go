@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"os"
 	"strings"
@@ -25,8 +26,8 @@ func estimate(args []string, stdout, stderr io.Writer) error {
 	if err := set.Parse(args); err != nil {
 		return err
 	}
-	if rate <= 0 {
-		return errors.New("rate must be positive")
+	if rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		return errors.New("rate must be finite and positive")
 	}
 	matcher, err := wish.NewMatcher(prefixes, suffixes)
 	if err != nil {

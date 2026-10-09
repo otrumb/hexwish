@@ -50,6 +50,15 @@ func TestRun_estimate_never_reports_wrapped_eta(t *testing.T) {
 	}
 }
 
+func TestRun_estimate_rejects_nonfinite_rate(t *testing.T) {
+	for _, rate := range []string{"NaN", "+Inf", "-Inf"} {
+		err := Run(context.Background(), []string{"estimate", "--prefix", "a", "--rate", rate}, &bytes.Buffer{}, &bytes.Buffer{})
+		if err == nil {
+			t.Fatalf("accepted rate %s", rate)
+		}
+	}
+}
+
 func TestRun_generate_then_verify_uses_hidden_password_boundary(t *testing.T) {
 	password := []byte("TEST ONLY NEVER FUND")
 	oldReader := readPassword
