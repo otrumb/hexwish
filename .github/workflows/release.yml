@@ -1,14 +1,53 @@
 name: draft-release
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        required: true
-        description: Exact v0.1.x tag already approved for publication
+  push:
+    tags: [v0.1.0]
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  release:
+  validate:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: linux-amd64
+            binary: hexwish
+          - os: windows-latest
+            artifact: windows-amd64
+            binary: hexwish.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
+        with:
+          go-version: 1.25.14
+          check-latest: false
+      - shell: bash
+        run: |
+          test "${GITHUB_REF}" = "refs/tags/v0.1.0"
+          test "$(git rev-list -n 1 v0.1.0)" = "${GITHUB_SHA}"
+          go mod verify
+          go test -shuffle=on -count=1 ./...
+          go vet ./...
+          go build -trimpath -ldflags='-buildid=' -o "${{ matrix.binary }}" ./
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          govulncheck ./...
+          govulncheck -mode=binary "${{ matrix.binary }}"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+  package:
+    needs: validate
     runs-on: ubuntu-latest
     env:
       GOTOOLCHAIN: local
@@ -16,27 +55,55 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ inputs.version }}
+          ref: ${{ github.ref }}
       - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32
         with:
           go-version: 1.25.14
           check-latest: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: '*-amd64'
+          merge-multiple: true
       - shell: bash
         run: |
-          test "$(git describe --tags --exact-match)" = "${{ inputs.version }}"
-          test "$(git rev-list -n 1 "${{ inputs.version }}")" = "${GITHUB_SHA}"
           mkdir dist
-          GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-buildid=' -o dist/hexwish ./
-          GOOS=windows GOARCH=amd64 go build -trimpath -ldflags='-buildid=' -o dist/hexwish.exe ./
-          cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/
-          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -czf hexwish-linux-amd64.tar.gz -C dist hexwish LICENSE README.md THIRD_PARTY_NOTICES.md
-          zip -X -j hexwish-windows-amd64.zip dist/hexwish.exe dist/LICENSE dist/README.md dist/THIRD_PARTY_NOTICES.md
-          sha256sum hexwish-linux-amd64.tar.gz hexwish-windows-amd64.zip > SHA256SUMS
+          go run ./cmd/package -binary hexwish -platform linux-amd64 -out dist
+          go run ./cmd/package -binary hexwish.exe -platform windows-amd64 -out dist
+          go run ./cmd/package -binary hexwish -binary hexwish.exe -platform source -out dist
+          cd dist
+          sha256sum hexwish-linux-amd64.tar.gz hexwish-windows-amd64.zip hexwish-source-v0.1.0.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-candidate
+          path: |
+            dist/hexwish-linux-amd64.tar.gz
+            dist/hexwish-windows-amd64.zip
+            dist/hexwish-source-v0.1.0.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: release-candidate
+      - shell: bash
+        run: |
+          remote_target="$(git ls-remote origin "refs/tags/${GITHUB_REF_NAME}^{}" | awk 'NR == 1 { print $1}')"
+          test -n "${remote_target}"
+          test "${remote_target}" = "${GITHUB_SHA}"
       - uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8
         with:
           draft: true
-          tag_name: ${{ inputs.version }}
+          tag_name: v0.1.0
           files: |
             hexwish-linux-amd64.tar.gz
             hexwish-windows-amd64.zip
+            hexwish-source-v0.1.0.tar.gz
             SHA256SUMS
