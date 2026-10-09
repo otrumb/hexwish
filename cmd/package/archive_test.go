@@ -51,3 +51,15 @@ func TestLicenseNames_includes_all_root_license_material(t *testing.T) {
 		t.Fatalf("got %v", names)
 	}
 }
+
+func TestAddGoLicense_includes_toolchain_terms(t *testing.T) {
+	files := make(map[string][]byte)
+	if err := addGoLicense(files); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"licenses/go/LICENSE", "licenses/go/PATENTS"} {
+		if len(files[name]) == 0 {
+			t.Fatalf("missing %s", name)
+		}
+	}
+}

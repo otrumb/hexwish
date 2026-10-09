@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -41,6 +42,9 @@ func releaseFiles(binary string) (map[string][]byte, error) {
 		return nil, err
 	}
 	if err := addLicenses(files, binary); err != nil {
+		return nil, err
+	}
+	if err := addGoLicense(files); err != nil {
 		return nil, err
 	}
 	return files, nil
@@ -90,12 +94,23 @@ func addProjectSource(files map[string][]byte) error {
 		}
 		files["source/"+name] = content
 	}
-	for _, root := range []string{"cmd", "internal"} {
+	rootGo, err := filepath.Glob("*.go")
+	if err != nil {
+		return err
+	}
+	for _, path := range rootGo {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		files["source/"+filepath.ToSlash(path)] = content
+	}
+	for _, root := range []string{".github", "cmd", "internal"} {
 		if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
-			if entry.IsDir() || filepath.Ext(path) != ".go" {
+			if entry.IsDir() || (filepath.Ext(path) != ".go" && filepath.Ext(path) != ".yml") {
 				return nil
 			}
 			content, err := os.ReadFile(path)
@@ -107,6 +122,17 @@ func addProjectSource(files map[string][]byte) error {
 		}); err != nil {
 			return fmt.Errorf("collect source %s: %w", root, err)
 		}
+	}
+	return nil
+}
+
+func addGoLicense(files map[string][]byte) error {
+	for _, name := range []string{"LICENSE", "PATENTS"} {
+		content, err := os.ReadFile(filepath.Join(runtime.GOROOT(), name))
+		if err != nil {
+			return fmt.Errorf("read Go %s: %w", name, err)
+		}
+		files["licenses/go/"+name] = content
 	}
 	return nil
 }
