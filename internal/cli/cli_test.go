@@ -98,3 +98,18 @@ func TestRun_generate_wrong_confirmation_leaves_no_destination(t *testing.T) {
 		t.Fatalf("destination exists after mismatch: %v", statErr)
 	}
 }
+
+func TestCLI_exposes_no_secret_flag_or_environment_input(t *testing.T) {
+	for _, name := range []string{"root.go", "read.go", "work.go"} {
+		content, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(content)
+		for _, forbidden := range []string{"String(\"password\"", "StringVar(\"password\"", "LookupEnv(", "Getenv("} {
+			if strings.Contains(text, forbidden) {
+				t.Fatalf("%s exposes forbidden secret input %q", name, forbidden)
+			}
+		}
+	}
+}
