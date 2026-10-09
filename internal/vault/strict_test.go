@@ -59,3 +59,10 @@ func TestParseEnvelope_rejects_invalid_utf8_without_panic(t *testing.T) {
 		t.Fatal("accepted invalid UTF-8")
 	}
 }
+
+func TestVerify_rejects_dangerous_shadow_before_decryption(t *testing.T) {
+	document := strings.Replace(validV3, `"n":262144`, `"n":1073741824,"N":262144`, 1)
+	if _, err := Verify([]byte(document), []byte("TEST ONLY NEVER FUND")); err == nil {
+		t.Fatal("accepted dangerous shadow")
+	}
+}
