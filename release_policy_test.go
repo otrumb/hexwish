@@ -29,7 +29,14 @@ func TestRelease_requires_exact_v011_tag_and_dual_os_validation(t *testing.T) {
 
 func TestRelease_binds_remote_tag_to_validated_commit(t *testing.T) {
 	workflow := readPolicyFile(t, ".github/workflows/release.yml")
-	for _, required := range []string{"group: release-${{ github.ref }}", "cancel-in-progress: false", "git ls-remote origin", "test \"${remote_target}\" = \"${GITHUB_SHA}\""} {
+	for _, required := range []string{
+		"group: release-${{ github.ref }}",
+		"cancel-in-progress: false",
+		"git ls-remote origin \"refs/tags/${GITHUB_REF_NAME}\"",
+		"git ls-remote origin \"refs/tags/${GITHUB_REF_NAME}^{}\"",
+		"remote_target=\"${peeled_target:-${direct_target}}\"",
+		"test \"${remote_target}\" = \"${GITHUB_SHA}\"",
+	} {
 		if !strings.Contains(workflow, required) {
 			t.Fatalf("missing release binding token %q", required)
 		}

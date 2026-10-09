@@ -95,7 +95,9 @@ jobs:
           name: release-candidate
       - shell: bash
         run: |
-          remote_target="$(git ls-remote origin "refs/tags/${GITHUB_REF_NAME}^{}" | awk 'NR == 1 { print $1}')"
+          direct_target="$(git ls-remote origin "refs/tags/${GITHUB_REF_NAME}" | awk 'NR == 1 { print $1}')"
+          peeled_target="$(git ls-remote origin "refs/tags/${GITHUB_REF_NAME}^{}" | awk 'NR == 1 { print $1}')"
+          remote_target="${peeled_target:-${direct_target}}"
           test -n "${remote_target}"
           test "${remote_target}" = "${GITHUB_SHA}"
       - uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8
